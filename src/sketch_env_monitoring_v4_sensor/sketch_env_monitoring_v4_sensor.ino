@@ -343,6 +343,23 @@ void loop() { // put your main code here, to run repeatedly:
   Serial.println(mq5_lpg);
   Serial.print("MQ-135 CO2:");
   Serial.println(mq135_co2);
+
+  Time clockTime = readClock();
+   Serial.print("Timestamp:");
+   Serial.print(clockTime.year);
+     Serial.print("/");
+   Serial.print(clockTime.mon);
+      Serial.print("/");
+   Serial.print(clockTime.date);
+         Serial.print(" ");
+   Serial.print(clockTime.hour);
+         Serial.print(":");
+   Serial.print(clockTime.min);
+         Serial.print(":");
+   Serial.println(clockTime.sec);
+
+
+  
   delay(READING_SENSOR_INTERVAL);
   firstLoop = false;
   //initScreen();
@@ -473,9 +490,9 @@ void initClock() {
 
 void writeClock() {
     // The following lines can be uncommented to set the date and time
-  rtc.setDOW(TUESDAY);     // Set Day-of-Week to SUNDAY
-  rtc.setTime(21, 44, 0);     // Set the time to 12:00:00 (24hr format)
-  rtc.setDate(28, 4, 2018);   // Set the date to January 1st, 2014
+  rtc.setDOW(SUNDAY);     // Set Day-of-Week to SUNDAY
+  rtc.setTime(13, 34, 0);     // Set the time to 12:00:00 (24hr format)
+  rtc.setDate(29, 4, 2018);   // Set the date to January 1st, 2014
 
 //  bool parse = false;
 //  bool config = false;

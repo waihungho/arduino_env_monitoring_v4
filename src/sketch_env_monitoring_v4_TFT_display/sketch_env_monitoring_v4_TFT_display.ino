@@ -71,6 +71,7 @@
 
 // TFT Display Configuration (BEGIN)
 #include <TFT_HX8357.h> // Hardware-specific library
+#include "Free_Fonts.h" // Include the header file attached to this sketch
 TFT_HX8357 tft = TFT_HX8357();       // Invoke custom library
 #define TFT_GREY 0x5AEB
 float ltx = 0;    // Saved x coord of bottom of needle
@@ -119,10 +120,16 @@ boolean writeSDHeader = false;
 #define TEMPERATURE_STR_SIZE 5
 #define HUMIDITY_STR_SIZE 5
 #define PRESSURE_STR_SIZE 5
+#define MQ5_LPG_STR_SIZE 5
+#define MQ135_CO2_STR_SIZE 5
+
 char timeStr[TIME_STR_SIZE];
 char temperatureStr[TEMPERATURE_STR_SIZE];
 char humidityStr[HUMIDITY_STR_SIZE];
 char pressureStr[PRESSURE_STR_SIZE];
+char mq5LpgStr[MQ5_LPG_STR_SIZE];
+char mq135Co2Str[MQ135_CO2_STR_SIZE];
+
 #define REINIT_TFT_COUNT 1800 // re-init every hour
 // Software variables (BEGIN)
 
@@ -293,18 +300,35 @@ Serial.println(arduinoData.mq5_lpg);
   value[5] = 50 + 50 * sin((d + 300) * 0.0174532925);
 
   unsigned int DISPLAY_STR_SIZE=20;
-  char displayHum[DISPLAY_STR_SIZE], displayTemp[DISPLAY_STR_SIZE], displayPressure[DISPLAY_STR_SIZE], displayPm25[DISPLAY_STR_SIZE], displayTime[TIME_STR_SIZE];
+  char displayHum[DISPLAY_STR_SIZE], displayTemp[DISPLAY_STR_SIZE], 
+      displayHumTemp[DISPLAY_STR_SIZE],
+      displayPressure[DISPLAY_STR_SIZE], displayPm25[DISPLAY_STR_SIZE], displayTime[TIME_STR_SIZE],
+      displayMq5Lpg[DISPLAY_STR_SIZE], displayMq135Co2[DISPLAY_STR_SIZE];
   unsigned int PM25_STR_SIZE = 4;
   char pm2_5Str[PM25_STR_SIZE];
   memset(temperatureStr, ' ', TEMPERATURE_STR_SIZE);
   memset(humidityStr, ' ', HUMIDITY_STR_SIZE);
   memset(pressureStr, ' ', PRESSURE_STR_SIZE);
   memset(pm2_5Str, ' ', PM25_STR_SIZE);
+
+  memset(mq5LpgStr, ' ', MQ5_LPG_STR_SIZE);
+  memset(mq135Co2Str, ' ', MQ135_CO2_STR_SIZE);
+
+  
   dtostrf(arduinoData.temperatureC, 2, 1, temperatureStr);  //format the display string (2 digits, 1 dp)  // temperatureStr[4]
   dtostrf(arduinoData.humidityPer, 2, 1, humidityStr);  // humidityStr[4]
   dtostrf(arduinoData.pressure, 4, 0, pressureStr);
   dtostrf(arduinoData.pm_2_5, 3, 0, pm2_5Str);
 
+  dtostrf(arduinoData.mq5_lpg, 4, 0, mq5LpgStr);
+  dtostrf(arduinoData.mq135_co2, 4, 0, mq135Co2Str);
+
+  strcpy(displayHumTemp, "H: ");
+  strcat(displayHumTemp, humidityStr);
+  strcat(displayHumTemp, "%  T: ");
+  strcat(displayHumTemp, temperatureStr);
+  strcat(displayHumTemp, "C");
+  
    strcpy(displayHum,  "HUM  : "); // need to consider DISPLAY_STR_SIZE
    strcat(displayHum, humidityStr);
    strcat(displayHum, " %");
@@ -320,7 +344,14 @@ Serial.println(arduinoData.mq5_lpg);
    strcpy(displayPm25,  "PM 2.5: ");
    strcat(displayPm25, pm2_5Str);
    strcat(displayPm25, " ug/m3  ");
-   
+
+   strcpy(displayMq5Lpg,  "DGas : ");
+   strcat(displayMq5Lpg, mq5LpgStr);
+   strcat(displayMq5Lpg, " ppm  ");
+
+   strcpy(displayMq135Co2,  "CO2    : ");
+   strcat(displayMq135Co2, mq135Co2Str);
+   strcat(displayMq135Co2, " ppm  ");
    
   //tmElements_t currentTime = readClock();
   if (  arduinoData.clockYear!=0 ) {
@@ -334,6 +365,11 @@ Serial.println(arduinoData.mq5_lpg);
 //  tft.drawRightString(displayTempOrig, 450, 210 , 4);
 //  tft.drawRightString(displayPressureOrig, 450, 240 , 4);
 
+ // Reference: https://github.com/Bodmer/TFT_HX8357/blob/master/examples/Free_Font_Demo/Free_Font_Demo.ino
+//  tft.setFreeFont(FSB9);                              // Select the font
+//  tft.drawString("Serif Bold 9pt", xpos, ypos, GFXFF);  // Draw the text string in the selected GFX free font
+//  ypos += tft.fontHeight(GFXFF);    
+  
   unsigned int DISPLAY_X_COR = 200;
   unsigned int DISPLAY_Y_COR_INIT = 140;
   unsigned int EACH_ROW_HEIGHT =30;
@@ -342,21 +378,27 @@ Serial.println(arduinoData.mq5_lpg);
      tft.setTextColor(TFT_PINK, TFT_BLACK);
      tft.drawString("[SD Card]", 410, DISPLAY_Y_COR_INIT + EACH_ROW_HEIGHT * rowSize , 2);
   }
-  tft.setTextColor(TFT_ORANGE, TFT_BLACK);
-  tft.drawString(WELCOME_MSG_FIRST_LINE, DISPLAY_X_COR, DISPLAY_Y_COR_INIT + EACH_ROW_HEIGHT * rowSize++ , 4);  
-  
-  if ( arduinoData.clockYear != 0 ) {
-    //tft.setTextColor(TFT_GREENYELLOW, TFT_BLACK);
-    tft.setTextColor(TFT_ORANGE, TFT_BLACK);
-    tft.drawString(displayTime, DISPLAY_X_COR, DISPLAY_Y_COR_INIT + EACH_ROW_HEIGHT * rowSize++ , 4);
-  }
+//tft.setFreeFont(FF4);
+  unsigned int fontSize = 4;
 
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
-  tft.drawString(displayHum, DISPLAY_X_COR, DISPLAY_Y_COR_INIT + EACH_ROW_HEIGHT * rowSize++ , 4);
-  tft.drawString(displayTemp, DISPLAY_X_COR, DISPLAY_Y_COR_INIT + EACH_ROW_HEIGHT * rowSize++, 4);
-  tft.drawString(displayPressure, DISPLAY_X_COR, DISPLAY_Y_COR_INIT + EACH_ROW_HEIGHT * rowSize++, 4);
+  //tft.drawString(displayHumTemp, DISPLAY_X_COR, DISPLAY_Y_COR_INIT + EACH_ROW_HEIGHT * rowSize++ , fontSize);
+  //tft.drawString(displayHum, DISPLAY_X_COR, DISPLAY_Y_COR_INIT + EACH_ROW_HEIGHT * rowSize++ , fontSize);
+  //tft.drawString(displayTemp, DISPLAY_X_COR, DISPLAY_Y_COR_INIT + EACH_ROW_HEIGHT * rowSize++, fontSize);
+  tft.drawString(displayPressure, DISPLAY_X_COR, DISPLAY_Y_COR_INIT + EACH_ROW_HEIGHT * rowSize++, fontSize);
 
- 
+
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  tft.drawString(displayHumTemp, DISPLAY_X_COR, DISPLAY_Y_COR_INIT + EACH_ROW_HEIGHT * rowSize++ , fontSize);
+  
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  tft.drawString(displayMq5Lpg, DISPLAY_X_COR, DISPLAY_Y_COR_INIT + EACH_ROW_HEIGHT * rowSize++ , fontSize);  
+  // tft.setTextColor(TFT_ORANGE, TFT_BLACK);
+  // tft.drawString(WELCOME_MSG_FIRST_LINE, DISPLAY_X_COR, DISPLAY_Y_COR_INIT + EACH_ROW_HEIGHT * rowSize++ , fontSize);  
+
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  tft.drawString(displayMq135Co2, DISPLAY_X_COR, DISPLAY_Y_COR_INIT + EACH_ROW_HEIGHT * rowSize++ , fontSize);  
+   
  if ( arduinoData.pm_2_5 <= 100 ) {
   tft.setTextColor(TFT_GREEN, TFT_BLACK);
  } else if ( arduinoData.pm_2_5 > 100 &&  arduinoData.pm_2_5 <= 200 ) {
@@ -367,7 +409,7 @@ Serial.println(arduinoData.mq5_lpg);
   tft.setTextColor(TFT_PURPLE, TFT_BLACK);
  } 
  
-  tft.drawString(displayPm25, DISPLAY_X_COR, DISPLAY_Y_COR_INIT + EACH_ROW_HEIGHT * rowSize++ , 4);
+  tft.drawString(displayPm25, DISPLAY_X_COR, DISPLAY_Y_COR_INIT + EACH_ROW_HEIGHT * rowSize++ , fontSize);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
   
 //strcpy(displayHumOrig,  displayHum);
@@ -389,6 +431,11 @@ Serial.println(arduinoData.mq5_lpg);
   plotNeedle(arduinoData.temperatureC, 0, 240, "TEMP"); // It takes between 2 and 12ms to replot the needle with zero delay
   plotNeedle(arduinoData.humidityPer, 0, 0, "%HUM"); // It takes between 2 and 12ms to replot the needle with zero delay
 
+  if ( arduinoData.clockYear != 0 ) {
+    //tft.setTextColor(TFT_GREENYELLOW, TFT_BLACK);
+    tft.setTextColor(TFT_ORANGE, TFT_BLACK);
+    tft.drawString(displayTime, DISPLAY_X_COR, DISPLAY_Y_COR_INIT + EACH_ROW_HEIGHT * rowSize++ , fontSize);
+  }
 
 }
 
