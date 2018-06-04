@@ -13,6 +13,7 @@
 //  5. MQ-5 (LPG sensor)
 //  6. MQ-135 (CO2 sensor)
 //  7. DS3231 Clock
+//  8. Rocker Switch
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -98,12 +99,17 @@
 // MQ-135 (CO2 sensor)
 #define MQ135_CO2_PIN A1
 
-
 // DS3231 Clock   Arduino
 // 6              SCL
 // 7              SDA
 #define DS3231_CLOCK_SDA 7
 #define DS3231_CLOCK_SCL 6
+
+// Buzzer   Arduino
+//  I/O        3
+#define BUZZER_PIN 3
+
+#define ROCKER_SWITCH_PIN 2
 
 // ------------------------------------------
 //  PIN Configuration (END)
@@ -193,6 +199,7 @@ Time timeDS3231;
 int isClockOk = true;
 // Clock Configuration (END)
 
+
 // SD Card Module Configuration (BEGIN)
 //#include <SPI.h>
 //#include <SD.h>
@@ -240,6 +247,8 @@ ARDUINO_CONNECT_DATA_STRUCTURE arduinoData;
 // Software variables(BEGIN)
 #define FIRST_LOOP_DELAY 2000  // delay seconds to wait for PMS3003 sensor on first-loop.
 boolean firstLoop = true;
+uint16_t numRound = 0; // no. of round
+#define WARM_UP_ROUND 60 // 60 sec
 boolean writeSDHeader = false;
 #define TIME_STR_SIZE 20
 #define TEMPERATURE_STR_SIZE 5
@@ -257,6 +266,10 @@ char mq135Co2Str[MQ135_CO2_STR_SIZE];
 
 #define MQ5_LPG_MAX_VALUE 9999 // sync with MQ5_LPG_STR_SIZE
 #define MQ135_CO2_MAX_VALUE 9999 // sync with MQ135_CO2_STR_SIZE
+
+byte ROCKER_SWITCH_ON = HIGH;
+byte ROCKER_SWITCH_OFF = LOW;
+byte rockerSwitch;
 // Software variables (BEGIN)
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -265,9 +278,16 @@ char mq135Co2Str[MQ135_CO2_STR_SIZE];
 
 void setup() {
   Serial.begin(SERIAL_BAUD_RATE);
+  
+  Serial.println("If you halt in setup steps, you may need to turn another Arduino on");
+  Serial.println("Setup[Buzzer]");
+  initBuzzer();
 
   Serial.println("Setup[Relay]");
   initRelay();
+
+  Serial.println("Setup[Rocker Switch]");
+  initRockerSwitch();
 
   Serial.println("Setup[MQ5]");
   initMQ5();
@@ -298,7 +318,9 @@ void setup() {
 
 
 void loop() { // put your main code here, to run repeatedly:
-
+  if ( numRound <= WARM_UP_ROUND ) {
+    numRound++;
+  } 
   pm_1 = 0;
   pm_2_5 = 0;
   pm_10 = 0;
@@ -309,6 +331,8 @@ void loop() { // put your main code here, to run repeatedly:
   mq5_lpg=0;
   mq135_co2=0;
 
+  Serial.println("Reading Rocker Switch");
+  readRockerSwitch();
 
   Serial.println("Reading PMS7003");
   readPMS7003();
@@ -321,7 +345,8 @@ void loop() { // put your main code here, to run repeatedly:
   readMQ5();
   readMQ135();
   
-  if ( !firstLoop){ // 2016.11.11: Rule of Thumb: dont log first data, which it is often inaccurate.
+  //if ( !firstLoop ){ // 2016.11.11: Rule of Thumb: dont log first data, which it is often inaccurate.
+  if ( numRound > WARM_UP_ROUND ) {
     writeToSDCard();
   }
 
@@ -359,15 +384,60 @@ void loop() { // put your main code here, to run repeatedly:
    Serial.println(clockTime.sec);
 
 
+  uint16_t ALERT_MQ5_LPG = 400;
+  uint16_t ALERT_MQ135_CO2 = 2000;
+ if ( rockerSwitch==ROCKER_SWITCH_ON && numRound > WARM_UP_ROUND && 
+  ( mq5_lpg > ALERT_MQ5_LPG || mq135_co2 > ALERT_MQ135_CO2) ) { // mq135_co2 not that stable enough
+  //( mq5_lpg > ALERT_MQ5_LPG ) ) {
+    turnOnRelay();
+    turnOnBuzzer();
+ } else {
+    turnOffRelay();
+ }
   
   delay(READING_SENSOR_INTERVAL);
   firstLoop = false;
   //initScreen();
 }
 
+void initBuzzer(){
+  pinMode (BUZZER_PIN, OUTPUT) ;// set the digital IO pin mode, OUTPUT out of Wen
+}
+
+void turnOnBuzzer(){
+   unsigned char i;// define variables
+   for (i = 0; i <80; i++) // Wen a frequency sound
+    {
+      digitalWrite (BUZZER_PIN, HIGH) ;// send voice
+      delay (1) ;// Delay 1ms
+      digitalWrite (BUZZER_PIN, LOW) ;// do not send voice
+      delay (1) ;// delay ms
+    }
+//    for (i = 0; i <100; i++) // Wen Qie out another frequency sound
+//    {
+//      digitalWrite (buzzer, HIGH) ;// send voice
+//      delay (2) ;// delay 2ms
+//      digitalWrite (buzzer, LOW) ;// do not send voice
+//      delay (2) ;// delay 2ms
+//    }
+}
+
+void initRockerSwitch(){
+  pinMode(ROCKER_SWITCH_PIN, INPUT);
+}
+
 void initMQ135(){
   // do nothings;
 }
+void readRockerSwitch(){
+  rockerSwitch  = digitalRead(ROCKER_SWITCH_PIN);
+  if ( rockerSwitch == ROCKER_SWITCH_ON ){
+    Serial.println("Rocker Switch is ON");
+  } else {
+    Serial.println("Rocker Switch is OFF");
+  }
+}
+
 void readMQ135(){
   mq135_co2 = mq135Sensor.getPPM();
     if (mq135_co2>MQ135_CO2_MAX_VALUE) {
@@ -418,9 +488,13 @@ void sendArduinConnect(){
   arduinoData.clockMinute = clockTime.min;
   arduinoData.clockSeconds = clockTime.sec;
 
-  arduinoData.mq135_co2 = mq135_co2;
-  arduinoData.mq5_lpg = mq5_lpg;
-  
+  if ( numRound > WARM_UP_ROUND ){
+    arduinoData.mq135_co2 = mq135_co2;
+    arduinoData.mq5_lpg = mq5_lpg;
+  } else {
+    arduinoData.mq135_co2 = 0;
+    arduinoData.mq5_lpg = 0;
+  }
   if ( isSuccesToInitSD ){
     arduinoData.isSuccesToInitSD = 1;
   }

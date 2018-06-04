@@ -346,12 +346,20 @@ Serial.println(arduinoData.mq5_lpg);
    strcat(displayPm25, " ug/m3  ");
 
    strcpy(displayMq5Lpg,  "DGas : ");
-   strcat(displayMq5Lpg, mq5LpgStr);
-   strcat(displayMq5Lpg, " ppm  ");
-
+   if ( arduinoData.mq5_lpg != 0 ) {
+    strcat(displayMq5Lpg, mq5LpgStr);
+    strcat(displayMq5Lpg, " ppm  ");
+   } else {
+     strcat(displayMq5Lpg, " n/a    ");
+   }
+   
    strcpy(displayMq135Co2,  "CO2    : ");
-   strcat(displayMq135Co2, mq135Co2Str);
-   strcat(displayMq135Co2, " ppm  ");
+   if ( arduinoData.mq135_co2 != 0 ) {
+    strcat(displayMq135Co2, mq135Co2Str);
+    strcat(displayMq135Co2, " ppm  ");
+   } else {
+     strcat(displayMq135Co2, " n/a    ");
+   }
    
   //tmElements_t currentTime = readClock();
   if (  arduinoData.clockYear!=0 ) {
@@ -390,13 +398,32 @@ Serial.println(arduinoData.mq5_lpg);
 
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
   tft.drawString(displayHumTemp, DISPLAY_X_COR, DISPLAY_Y_COR_INIT + EACH_ROW_HEIGHT * rowSize++ , fontSize);
-  
-  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+
+  // uint16_t TextColor
+  uint16_t mq5LpgColor;
+  uint16_t ALERT_MQ5_LPG = 400;
+  if ( arduinoData.mq5_lpg <= 200 ) {
+    mq5LpgColor=TFT_GREEN;
+  } else if ( arduinoData.mq5_lpg > 200 &&  arduinoData.mq5_lpg <= ALERT_MQ5_LPG ) {
+    mq5LpgColor=TFT_YELLOW;
+  }  else if ( arduinoData.mq5_lpg > ALERT_MQ5_LPG  ) {
+    mq5LpgColor=TFT_PURPLE;
+  }
+  tft.setTextColor(mq5LpgColor, TFT_BLACK);
   tft.drawString(displayMq5Lpg, DISPLAY_X_COR, DISPLAY_Y_COR_INIT + EACH_ROW_HEIGHT * rowSize++ , fontSize);  
   // tft.setTextColor(TFT_ORANGE, TFT_BLACK);
   // tft.drawString(WELCOME_MSG_FIRST_LINE, DISPLAY_X_COR, DISPLAY_Y_COR_INIT + EACH_ROW_HEIGHT * rowSize++ , fontSize);  
 
-  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  uint16_t mq135Co2Color=TFT_GREEN;
+   uint16_t ALERT_MQ135_CO2 = 2000;
+  if ( arduinoData.mq135_co2 <= 1000 ) {
+    mq135Co2Color=TFT_GREEN;
+  } else if ( arduinoData.mq135_co2 > 1000 &&  arduinoData.mq135_co2 <= ALERT_MQ135_CO2 ) {
+    mq135Co2Color=TFT_YELLOW;
+  }  else if ( arduinoData.mq135_co2 > ALERT_MQ135_CO2  ) {
+    mq135Co2Color=TFT_PURPLE;
+  }
+  tft.setTextColor(mq135Co2Color, TFT_BLACK);
   tft.drawString(displayMq135Co2, DISPLAY_X_COR, DISPLAY_Y_COR_INIT + EACH_ROW_HEIGHT * rowSize++ , fontSize);  
    
  if ( arduinoData.pm_2_5 <= 100 ) {
